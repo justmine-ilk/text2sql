@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent Text-to-SQL Analytics — Enterprise Self-Service</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <!-- Chart.js CDN for Dynamic Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
+
+  <!-- Header / Navigation -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i class="fa-solid fa-brain text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg text-white leading-tight">AI Text-to-SQL Analytics</h1>
+          <p class="text-xs text-slate-400">Enterprise Self-Service • Google AI Studio & LangGraph</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex items-center space-x-2 bg-slate-800/60 p-1.5 rounded-xl border border-slate-700/50">
+        <button id="nav-chat" onclick="switchTab('chat')" class="px-4 py-1.5 rounded-lg text-sm font-medium transition-all bg-indigo-600 text-white shadow-md">
+          <i class="fa-solid fa-comments mr-2"></i>Chat Analytics
+        </button>
+        <button id="nav-traces" onclick="switchTab('traces')" class="px-4 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
+          <i class="fa-solid fa-diagram-project mr-2"></i>Agent Traces
+        </button>
+        <button id="nav-admin" onclick="switchTab('admin')" class="px-4 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
+          <i class="fa-solid fa-shield-halved mr-2"></i>Admin Dashboard
+        </button>
+        <button id="nav-eval" onclick="switchTab('eval')" class="px-4 py-1.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all">
+          <i class="fa-solid fa-chart-line mr-2"></i>Benchmark (5D Scoring)
+        </button>
+      </nav>
+
+      <!-- User Role Badge -->
+      <div class="flex items-center space-x-3">
+        <div class="text-right hidden sm:block">
+          <div id="user-display-name" class="text-sm font-medium text-slate-200">Analyst User</div>
+          <div id="user-display-role" class="text-xs text-indigo-400 font-semibold uppercase tracking-wider">analyst</div>
+        </div>
+        <button onclick="toggleRole()" title="Switch Role (Analyst / Admin)" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all">
+          <i class="fa-solid fa-user-gear"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 flex flex-col">
+
+    <!-- TAB 1: Chat Analytics Interface -->
+    <section id="tab-chat" class="flex-1 flex flex-col space-y-4">
+      <!-- Quick Suggestion Pills -->
+      <div class="flex items-center space-x-2 overflow-x-auto pb-2 scrollbar-none">
+        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap"><i class="fa-solid fa-wand-magic-sparkles text-amber-400 mr-1"></i>Gợi ý câu hỏi:</span>
+        <button onclick="fillPrompt('Tổng doanh thu theo từng danh mục sản phẩm')" class="px-3 py-1 rounded-full text-xs bg-slate-800 hover:bg-indigo-900/40 hover:text-indigo-300 text-slate-300 border border-slate-700 whitespace-nowrap transition-all">
+          📊 Doanh thu theo danh mục
+        </button>
+        <button onclick="fillPrompt('Top 5 sản phẩm bán chạy nhất theo tổng số lượng')" class="px-3 py-1 rounded-full text-xs bg-slate-800 hover:bg-indigo-900/40 hover:text-indigo-300 text-slate-300 border border-slate-700 whitespace-nowrap transition-all">
+          🏆 Top 5 sản phẩm bán chạy
+        </button>
+        <button onclick="fillPrompt('Thống kê doanh thu theo phương thức thanh toán trong năm 2024')" class="px-3 py-1 rounded-full text-xs bg-slate-800 hover:bg-indigo-900/40 hover:text-indigo-300 text-slate-300 border border-slate-700 whitespace-nowrap transition-all">
+          💳 Doanh thu theo thanh toán
+        </button>
+        <button onclick="fillPrompt('Số lượng đơn hàng và trung bình review_score theo thành phố')" class="px-3 py-1 rounded-full text-xs bg-slate-800 hover:bg-indigo-900/40 hover:text-indigo-300 text-slate-300 border border-slate-700 whitespace-nowrap transition-all">
+          🏙️ Đơn hàng & Review theo thành phố
+        </button>
+      </div>
+
+      <!-- Chat Stream Window -->
+      <div id="chat-stream" class="flex-1 bg-slate-900/60 rounded-2xl border border-slate-800 p-4 sm:p-6 overflow-y-auto space-y-6 min-h-[480px] max-h-[620px] shadow-inner">
+        <!-- System Welcome Message -->
+        <div class="flex items-start space-x-3">
+          <div class="w-8 h-8 rounded-lg bg-indigo-600/30 text-indigo-400 flex items-center justify-center flex-shrink-0 border border-indigo-500/30">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <div class="bg-slate-800/80 rounded-2xl rounded-tl-none p-4 max-w-2xl border border-slate-700/60">
+            <p class="text-sm text-slate-200 font-semibold mb-2">
+              Xin chào! Tôi là AI Agent Analytics v2.0
+            </p>
+            <p class="text-xs text-slate-300 mb-3">
+              Đặt câu hỏi bằng tiếng Việt tự nhiên để truy vấn cơ sở dữ liệu <strong>Online Retail</strong> (1,000 giao dịch, 13 thuộc tính).
+            </p>
+            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-xs text-slate-400 space-y-1.5">
+              <div>🤖 <strong>LangGraph Multi-Agent Architecture:</strong> Planner &rarr; SQL Generator &rarr; Validator &rarr; HITL Approve &rarr; Executor &rarr; Visualizer</div>
+              <div>🔎 <strong>Agent Tracing & Observability:</strong> Theo dõi trực tiếp timeline và prompt/response từng node trong tab Agent Traces.</div>
+              <div>🛡️ <strong>HITL Governance:</strong> Phê duyệt SQL trước khi thực thi với Cost Guard real-time.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Box -->
+      <form id="chat-form" onsubmit="handleSendPrompt(event)" class="relative flex items-center">
+        <input type="text" id="prompt-input" placeholder="Nhập câu hỏi phân tích dữ liệu bán hàng (VD: Tổng doanh thu theo từng danh mục)..." 
+               class="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-2xl py-3.5 pl-4 pr-28 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-lg transition-all">
+        <button type="submit" id="btn-send" class="absolute right-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl font-medium text-sm flex items-center space-x-1.5 shadow-md shadow-indigo-600/30 transition-all">
+          <span>Gửi</span>
+          <i class="fa-solid fa-paper-plane text-xs"></i>
+        </button>
+      </form>
+    </section>
+
+    <!-- TAB 2: Agent Traces Viewer -->
+    <section id="tab-traces" class="hidden flex-1 flex-col space-y-6">
+      <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h3 class="font-bold text-slate-100 text-lg flex items-center"><i class="fa-solid fa-diagram-project text-cyan-400 mr-2"></i>Agent Tracing & Observability</h3>
+            <p class="text-xs text-slate-400 mt-1">Ghi nhận timeline, thời gian phản hồi, prompt và response của từng node theo mô hình OpenCode.</p>
+          </div>
+          <button onclick="loadAgentTraces()" class="px-3.5 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700 flex items-center space-x-1.5">
+            <i class="fa-solid fa-rotate"></i>
+            <span>Làm mới Traces</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto border border-slate-800 rounded-xl">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-800/80 text-slate-400 uppercase font-semibold">
+              <tr>
+                <th class="p-3">Trace ID</th>
+                <th class="p-3">User Query</th>
+                <th class="p-3">Thời gian (ms)</th>
+                <th class="p-3">LLM Calls</th>
+                <th class="p-3">Trạng thái</th>
+                <th class="p-3">Score</th>
+                <th class="p-3">Chi tiết</th>
+              </tr>
+            </thead>
+            <tbody id="traces-table-body" class="divide-y divide-slate-800/60">
+              <tr>
+                <td colspan="7" class="p-6 text-center text-slate-500">Chưa có dữ liệu trace. Đặt câu hỏi trong tab Chat Analytics để tạo trace mới.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Admin Schema & Logs -->
+    <section id="tab-admin" class="hidden flex-1 flex-col space-y-6">
+      <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+        <h3 class="font-bold text-slate-100 text-lg mb-4 flex items-center"><i class="fa-solid fa-database text-indigo-400 mr-2"></i>Metadata CSDL (Schema & Descriptions)</h3>
+        <div class="overflow-x-auto border border-slate-800 rounded-xl mb-6">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-800/80 text-slate-400 uppercase font-semibold">
+              <tr>
+                <th class="p-3">Tên cột</th>
+                <th class="p-3">Kiểu dữ liệu</th>
+                <th class="p-3">Mô tả tiếng Việt</th>
+                <th class="p-3">Giá trị mẫu</th>
+              </tr>
+            </thead>
+            <tbody id="schema-table-body" class="divide-y divide-slate-800/60">
+              <!-- JS populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Audit Query Logs Table -->
+      <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-slate-100 text-base flex items-center"><i class="fa-solid fa-list-check text-amber-400 mr-2"></i>Nhật ký Audit Truy vấn (Query Logs)</h3>
+          <button onclick="loadAdminLogs()" class="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700">
+            <i class="fa-solid fa-rotate mr-1"></i>Làm mới
+          </button>
+        </div>
+        <div class="overflow-x-auto border border-slate-800 rounded-xl">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-800/80 text-slate-400 uppercase font-semibold">
+              <tr>
+                <th class="p-2.5">ID</th>
+                <th class="p-2.5">User</th>
+                <th class="p-2.5">Câu hỏi NL</th>
+                <th class="p-2.5">SQL sinh ra</th>
+                <th class="p-2.5">Trạng thái</th>
+                <th class="p-2.5">Số dòng</th>
+                <th class="p-2.5">Thời gian (ms)</th>
+              </tr>
+            </thead>
+            <tbody id="logs-table-body" class="divide-y divide-slate-800/60">
+              <!-- JS populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: Benchmark Eval (5D Scoring) -->
+    <section id="tab-eval" class="hidden flex-1 flex-col space-y-6">
+      <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h3 class="font-bold text-slate-100 text-lg flex items-center"><i class="fa-solid fa-vial-circle-check text-purple-400 mr-2"></i>Bộ Đánh Giá Benchmark (5-Dimensional Scoring)</h3>
+            <p class="text-xs text-slate-400 mt-1">Đo lường Syntax, Schema, Execution Match, Logic Equivalence (LLM Judge) và Performance trên 20 test cases.</p>
+          </div>
+          <button onclick="runEvaluation()" id="btn-run-eval" class="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-sm font-semibold rounded-xl transition-all shadow-lg shadow-purple-600/30 flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-play"></i>
+            <span>Chạy Benchmark Đánh Giá</span>
+          </button>
+        </div>
+
+        <!-- Score Summary Cards -->
+        <div id="eval-summary-cards" class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+          <div class="bg-slate-800/60 border border-slate-700/60 p-4 rounded-xl text-center">
+            <div class="text-xs text-slate-400 uppercase font-semibold">Tổng số Test Cases</div>
+            <div id="eval-total" class="text-2xl font-extrabold text-slate-100 mt-1">20</div>
+          </div>
+          <div class="bg-slate-800/60 border border-slate-700/60 p-4 rounded-xl text-center">
+            <div class="text-xs text-slate-400 uppercase font-semibold">Số câu vượt qua (Passed)</div>
+            <div id="eval-passed" class="text-2xl font-extrabold text-emerald-400 mt-1">-</div>
+          </div>
+          <div class="bg-slate-800/60 border border-slate-700/60 p-4 rounded-xl text-center">
+            <div class="text-xs text-slate-400 uppercase font-semibold">Execution Accuracy</div>
+            <div id="eval-accuracy" class="text-2xl font-extrabold text-indigo-400 mt-1">-%</div>
+          </div>
+          <div class="bg-slate-800/60 border border-slate-700/60 p-4 rounded-xl text-center">
+            <div class="text-xs text-slate-400 uppercase font-semibold">Điểm TB (Composite Score)</div>
+            <div id="eval-avg-score" class="text-2xl font-extrabold text-purple-400 mt-1">-/100</div>
+          </div>
+        </div>
+
+        <!-- Test Details Table -->
+        <div class="overflow-x-auto border border-slate-800 rounded-xl">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-800/80 text-slate-400 uppercase font-semibold">
+              <tr>
+                <th class="p-3">#</th>
+                <th class="p-3">Câu hỏi tiếng Việt</th>
+                <th class="p-3">Gold SQL (Chuẩn)</th>
+                <th class="p-3">Generated SQL (Agent)</th>
+                <th class="p-3">Điểm tổng hợp</th>
+                <th class="p-3">Kết quả Execution</th>
+              </tr>
+            </thead>
+            <tbody id="eval-table-body" class="divide-y divide-slate-800/60">
+              <tr>
+                <td colspan="6" class="p-6 text-center text-slate-500">Bấm "Chạy Benchmark Đánh Giá" để chạy test suite.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

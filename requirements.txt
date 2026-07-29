@@ -1,0 +1,26 @@
+# Core FastAPI & Web
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+python-dotenv>=1.0.0
+python-multipart>=0.0.18
+pyjwt>=2.8.0
+
+# Database & Data Processing
+pandas>=2.2.0
+sqlalchemy>=2.0.0
+sqlite3-to-mysql>=1.4.0 ; sys_platform != "win32"
+
+# AI & LangChain / LangGraph
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+langchain-google-genai>=2.0.0
+langgraph>=0.2.0
+google-genai>=0.1.0
+
+# Dev & Testing
+pytest>=8.0.0
+pytest-asyncio>=0.24.0
+httpx>=0.28.0

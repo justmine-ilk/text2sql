@@ -1,0 +1,82 @@
+[
+  {
+    "question": "Tổng doanh thu theo từng danh mục sản phẩm",
+    "gold_sql": "SELECT category_name, ROUND(SUM(quantity * price), 2) AS total_revenue FROM online_retail GROUP BY category_name ORDER BY total_revenue DESC;"
+  },
+  {
+    "question": "Top 5 sản phẩm bán chạy nhất theo tổng số lượng",
+    "gold_sql": "SELECT product_name, SUM(quantity) AS total_quantity FROM online_retail GROUP BY product_name ORDER BY total_quantity DESC LIMIT 5;"
+  },
+  {
+    "question": "Thống kê doanh thu theo từng phương thức thanh toán",
+    "gold_sql": "SELECT payment_method, ROUND(SUM(quantity * price), 2) AS total_revenue FROM online_retail GROUP BY payment_method ORDER BY total_revenue DESC;"
+  },
+  {
+    "question": "Số lượng đơn hàng theo thành phố",
+    "gold_sql": "SELECT city, COUNT(*) AS order_count FROM online_retail GROUP BY city ORDER BY order_count DESC LIMIT 10;"
+  },
+  {
+    "question": "Trung bình điểm đánh giá review_score theo danh mục sản phẩm",
+    "gold_sql": "SELECT category_name, ROUND(AVG(review_score), 2) AS avg_score FROM online_retail GROUP BY category_name ORDER BY avg_score DESC;"
+  },
+  {
+    "question": "Doanh thu trung bình theo độ tuổi khách hàng",
+    "gold_sql": "SELECT age, ROUND(AVG(quantity * price), 2) AS avg_revenue FROM online_retail GROUP BY age ORDER BY age ASC;"
+  },
+  {
+    "question": "Tổng số khách hàng nam và nữ mua sắm",
+    "gold_sql": "SELECT gender, COUNT(DISTINCT customer_id) AS total_customers FROM online_retail GROUP BY gender;"
+  },
+  {
+    "question": "Danh sách các đơn hàng trong tháng 12 năm 2024",
+    "gold_sql": "SELECT customer_id, order_date, product_name, quantity, price FROM online_retail WHERE order_date >= '2024-12-01' AND order_date <= '2024-12-31' LIMIT 50;"
+  },
+  {
+    "question": "Doanh thu danh mục Electronics theo phương thức thanh toán",
+    "gold_sql": "SELECT payment_method, ROUND(SUM(quantity * price), 2) AS total_revenue FROM online_retail WHERE category_name = 'Electronics' GROUP BY payment_method;"
+  },
+  {
+    "question": "Sản phẩm có đơn giá cao nhất",
+    "gold_sql": "SELECT product_name, category_name, price FROM online_retail ORDER BY price DESC LIMIT 1;"
+  },
+  {
+    "question": "Tổng số lượng sản phẩm Smartphone đã bán",
+    "gold_sql": "SELECT SUM(quantity) AS total_smartphone_sold FROM online_retail WHERE product_name = 'Smartphone';"
+  },
+  {
+    "question": "Top 3 thành phố có doanh thu lớn nhất",
+    "gold_sql": "SELECT city, ROUND(SUM(quantity * price), 2) AS total_revenue FROM online_retail GROUP BY city ORDER BY total_revenue DESC LIMIT 3;"
+  },
+  {
+    "question": "Doanh thu theo từng tháng trong năm 2024",
+    "gold_sql": "SELECT strftime('%Y-%m', order_date) AS month, ROUND(SUM(quantity * price), 2) AS monthly_revenue FROM online_retail WHERE order_date >= '2024-01-01' AND order_date <= '2024-12-31' GROUP BY month ORDER BY month ASC;"
+  },
+  {
+    "question": "Số đơn hàng thanh toán bằng Credit Card có review_score 5 sao",
+    "gold_sql": "SELECT COUNT(*) AS five_star_credit_card_orders FROM online_retail WHERE payment_method = 'Credit Card' AND review_score = 5.0;"
+  },
+  {
+    "question": "Danh mục sản phẩm có điểm đánh giá trung bình cao nhất",
+    "gold_sql": "SELECT category_name, ROUND(AVG(review_score), 2) AS avg_rating FROM online_retail GROUP BY category_name ORDER BY avg_rating DESC LIMIT 1;"
+  },
+  {
+    "question": "Tổng doanh thu nhóm khách hàng trên 50 tuổi",
+    "gold_sql": "SELECT ROUND(SUM(quantity * price), 2) AS total_revenue FROM online_retail WHERE age > 50;"
+  },
+  {
+    "question": "Doanh thu theo danh mục Fashion đối với khách hàng nữ",
+    "gold_sql": "SELECT product_name, ROUND(SUM(quantity * price), 2) AS total_revenue FROM online_retail WHERE category_name = 'Fashion' AND gender = 'F' GROUP BY product_name ORDER BY total_revenue DESC;"
+  },
+  {
+    "question": "Trung bình giá tiền các sản phẩm thuộc danh mục Books & Stationery",
+    "gold_sql": "SELECT ROUND(AVG(price), 2) AS avg_price FROM online_retail WHERE category_name = 'Books & Stationery';"
+  },
+  {
+    "question": "Doanh thu",
+    "gold_sql": "SELECT ROUND(SUM(quantity * price), 2) AS total_revenue FROM online_retail;"
+  },
+  {
+    "question": "Số đơn hàng được mua bằng phương thức Cash on Delivery",
+    "gold_sql": "SELECT COUNT(*) AS cod_order_count FROM online_retail WHERE payment_method = 'Cash on Delivery';"
+  }
+]
