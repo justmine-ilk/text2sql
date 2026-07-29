@@ -1,11 +1,11 @@
 """
-Agent Graph — LangGraph workflow orchestration.
+Agent Graph — OpenCode Agent Engine v3 Workflow Orchestration.
 
-Nâng cấp v2:
-- Tích hợp tracing vào graph
-- Conversation memory support
-- HITL thread TTL cleanup
-- Proper error handling trong graph invocation
+Nâng cấp v3 (Ported from OpenCode dev branch):
+- OpenCodeAgentLoop: ReAct Step Lifecycle Management
+- PermissionHarness: Model Proposes, Runtime Permits (Plan Mode vs Build Mode)
+- SessionContextCompactor: Auto Token Budget Compaction & History Summarization
+- AgentEventBus: Real-time Telemetry Events
 """
 import asyncio
 import logging
@@ -24,7 +24,37 @@ from src.agents.nodes.visualizer import visualizer_node
 from src.agents.state import AgentState
 from src.agents.tracing import build_agent_trace_from_state
 
+# Import OpenCode Engine v3 Modules
+from src.agents.opencode.loop import OpenCodeAgentLoop
+from src.agents.opencode.harness import ExecutionMode, PermissionHarness
+from src.agents.opencode.compactor import SessionContextCompactor
+from src.agents.opencode.event_bus import agent_event_bus
+
 logger = logging.getLogger(__name__)
+
+
+# ─────────────────────────────────────────────
+# OpenCode Wrapped Agent Nodes
+# ─────────────────────────────────────────────
+
+opencode_loop_plan = OpenCodeAgentLoop(mode=ExecutionMode.PLAN)
+opencode_loop_build = OpenCodeAgentLoop(mode=ExecutionMode.BUILD)
+
+
+def opencode_planner_node(state: AgentState) -> AgentState:
+    return opencode_loop_plan.run_step("planner", planner_node, state)
+
+
+def opencode_generator_node(state: AgentState) -> AgentState:
+    return opencode_loop_plan.run_step("sql_generator", sql_generator_node, state)
+
+
+def opencode_validator_node(state: AgentState) -> AgentState:
+    return opencode_loop_plan.run_step("sql_validator", sql_validator_node, state)
+
+
+def opencode_refiner_node(state: AgentState) -> AgentState:
+    return opencode_loop_plan.run_step("sql_refiner", sql_refiner_node, state)
 
 
 # ─────────────────────────────────────────────
@@ -62,14 +92,14 @@ def route_refiner(state: AgentState) -> str:
 # ─────────────────────────────────────────────
 
 def create_agent_graph():
-    """Build and compile the LangGraph agent workflow."""
+    """Build and compile the LangGraph agent workflow wrapped with OpenCode Engine."""
     workflow = StateGraph(AgentState)
 
-    # Add Nodes
-    workflow.add_node("planner", planner_node)
-    workflow.add_node("sql_generator", sql_generator_node)
-    workflow.add_node("sql_validator", sql_validator_node)
-    workflow.add_node("sql_refiner", sql_refiner_node)
+    # Add OpenCode Engine Nodes
+    workflow.add_node("planner", opencode_planner_node)
+    workflow.add_node("sql_generator", opencode_generator_node)
+    workflow.add_node("sql_validator", opencode_validator_node)
+    workflow.add_node("sql_refiner", opencode_refiner_node)
     workflow.add_node("executor", executor_node)
     workflow.add_node("visualizer", visualizer_node)
 
@@ -96,7 +126,7 @@ def create_agent_graph():
     return workflow.compile()
 
 
-# Global agent instance (compiled once)
+# Global agent instance
 agent = create_agent_graph()
 
 
@@ -162,8 +192,7 @@ def run_agent_until_hitl(
     conversation_history: list = None,
 ) -> AgentState:
     """
-    Chạy agent từ user_query → dừng tại HITL (chờ approve/reject).
-    Trả về state để frontend hiển thị SQL và chờ user action.
+    Chạy OpenCode Agent Engine v3 từ user_query → dừng tại HITL.
     """
     thread_id = str(uuid.uuid4())
     initial_state: AgentState = {
@@ -202,7 +231,7 @@ def run_agent_until_hitl(
     try:
         final_state = agent.invoke(initial_state)
     except Exception as e:
-        logger.error(f"[Graph] Agent invocation error: {e}")
+        logger.error(f"[Graph] OpenCode Agent invocation error: {e}")
         initial_state["status"] = "failed"
         initial_state["execution_error"] = f"Lỗi hệ thống agent: {str(e)}"
         return initial_state
@@ -220,7 +249,7 @@ def run_agent_until_hitl(
     # Store in thread store for HITL
     THREAD_STORE.set(thread_id, final_state)
 
-    # Save trace to DB (non-blocking, non-critical)
+    # Save trace to DB
     _save_trace_async(final_state)
 
     return final_state
@@ -232,15 +261,13 @@ def execute_hitl_approval(
     modified_sql: Optional[str] = None,
 ) -> AgentState:
     """
-    Xử lý HITL decision (approve/reject).
-    Nếu approved → chạy Executor và Visualizer.
+    Xử lý HITL decision (approve/reject) trong Build Mode.
     """
     state["hitl_approved"] = approved
     state["hitl_action"] = "approved" if approved else "rejected"
 
     if modified_sql:
         state["generated_sql"] = modified_sql
-        # Re-validate modified SQL briefly
         from src.agents.tools import _validate_sql_internal
         result = _validate_sql_internal(modified_sql)
         if not result.is_valid:
@@ -253,13 +280,13 @@ def execute_hitl_approval(
         state["explanation"] = "Người dùng đã từ chối thực thi truy vấn SQL này."
         return state
 
-    # Run Executor → Visualizer
+    # Run Executor & Visualizer in BUILD Mode under OpenCode Agent Loop
     try:
-        state = executor_node(state)
+        state = opencode_loop_build.run_step("executor", executor_node, state)
         if state.get("status") == "executed":
-            state = visualizer_node(state)
+            state = opencode_loop_build.run_step("visualizer", visualizer_node, state)
     except Exception as e:
-        logger.error(f"[Graph] HITL execution error: {e}")
+        logger.error(f"[Graph] OpenCode BUILD Mode HITL execution error: {e}")
         state["status"] = "failed"
         state["execution_error"] = str(e)
 
@@ -270,7 +297,7 @@ def execute_hitl_approval(
 
 
 def _save_trace_async(state: AgentState):
-    """Lưu agent trace vào DB (fire-and-forget, không crash agent nếu fail)."""
+    """Lưu agent trace vào DB."""
     try:
         from src.services.trace_service import save_trace
         agent_trace = build_agent_trace_from_state(state)
